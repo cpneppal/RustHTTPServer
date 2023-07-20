@@ -1,9 +1,10 @@
+use std::fmt;
 use std::str::{from_utf8, FromStr};
 
 use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
-struct HTTPRequest {
+pub struct HTTPRequest {
     method: String,
     path: String,
     http_version: String,
@@ -63,6 +64,13 @@ impl FromStr for HTTPRequest {
     }
 }
 
+impl fmt::Display for HTTPRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "HTTP Method  : {}", self.method)?;
+        writeln!(f, "Path         : {}", self.path)?;
+        write!(f, "HTTP Version : {}", self.http_version)
+    }
+}
 #[cfg(test)]
 mod tests {
 
