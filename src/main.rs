@@ -26,20 +26,20 @@ async fn handle_connection(mut stream: TcpStream) {
 
     println!("Request Line => {request_line:?}");
 
-    let mut total_body: Vec<u8> = Vec::from(body);
+    let mut body: Vec<u8> = Vec::from(body);
 
     // finish the stream if body length < content_length
     if let Some(content_length) = request_line.content_length {
-        while total_body.len() < content_length {
+        while body.len() < content_length {
             let request_size = stream
                 .read(buf.as_mut_slice())
                 .await
                 .expect("Could not read from stream!");
 
-            total_body.extend_from_slice(&buf[..request_size]);
+            body.extend_from_slice(&buf[..request_size]);
         }
     }
-    println!("Body Length => {}", total_body.len());
+    println!("Body Length => {}", body.len());
     let response: &str = "HTTP/1.1 200 OK\r\n\r\n";
     stream
         .write_all(response.as_bytes())
