@@ -27,6 +27,7 @@ async fn handle_connection(mut stream: TcpStream) {
     let body = &buf[stop_point + 4..request_size];
 
     // Get Json and filter it, removing spaces and new lines
+    // TODO: See if you can use and_then and map_err to merge the two result types into 1
     let body = from_utf8(body).expect("Could not convert body byte sequence to UTF-8.");
     let body: Vec<Color> = serde_json::from_str(body).expect("Couldn't parse JSON");
     println!("Request Size: {}\n{}\n", request_size, request_line);
