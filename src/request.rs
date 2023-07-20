@@ -12,7 +12,10 @@ pub struct HTTPRequest {
     content_type: Option<String>,
 }
 
-impl<'a> TryFrom<&'a [u8]> for HTTPRequest {
+// Holds an HTTP Request and the index that request ends in the original byte buffer
+pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
+
+impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
         let mut stop_point: usize = 0;
@@ -32,9 +35,11 @@ impl<'a> TryFrom<&'a [u8]> for HTTPRequest {
         }
         // Convert from UTF 8, map the error, then use and_then to try to convert from a string and return a result with findings.
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
+        // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
         from_utf8(&value[..=stop_point])
             .map_err(|_| "Could not convert byte sequence to UTF-8".to_owned())
-            .and_then(Self::from_str)
+            .and_then(HTTPRequest::from_str)
+            .map(|headers| DeconstructedHTTPRequest(headers, stop_point))
     }
 }
 
@@ -98,7 +103,8 @@ mod tests {
             content_length: None,
             content_type: None,
         };
-        let actual_answer: HTTPRequest = test_bytes
+
+        let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()
             .expect("Could not convert byte slice into HTTP Request");
 
@@ -139,7 +145,7 @@ mod tests {
             content_length: None,
             content_type: None,
         };
-        let actual_answer: HTTPRequest = test_bytes
+        let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()
             .expect("Could not convert byte slice into HTTP Request");
 

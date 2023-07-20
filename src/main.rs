@@ -1,11 +1,16 @@
+mod deserialize;
 mod request;
+use std::str::from_utf8;
+
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
-const BUF_SIZE: usize = 1024;
+use deserialize::Color;
+use request::DeconstructedHTTPRequest;
 
+const BUF_SIZE: usize = 1024;
 async fn handle_connection(mut stream: TcpStream) {
     let mut buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
@@ -14,17 +19,23 @@ async fn handle_connection(mut stream: TcpStream) {
         .await
         .expect("Could not read from stream!");
 
-    let request_line = request::HTTPRequest::try_from(buf.as_slice())
+    let DeconstructedHTTPRequest(request_line, stop_point) = buf
+        .as_slice()
+        .try_into()
         .expect("Could not convert buffer to HTTP Request");
 
+    let body = &buf[stop_point + 4..request_size];
+
+    // Get Json and filter it, removing spaces and new lines
+    let body = from_utf8(body).expect("Could not convert body byte sequence to UTF-8.");
+    let body: Vec<Color> = serde_json::from_str(body).expect("Couldn't parse JSON");
     println!("Request Size: {}\n{}\n", request_size, request_line);
+    println!("Body Length: {}\nBody: {:?}", body.len(), body);
     let response: &str = "HTTP/1.1 200 OK\r\n\r\n";
     stream
         .write_all(response.as_bytes())
         .await
         .expect("Error writing response");
-
-    println!("Success!");
 }
 
 #[tokio::main]
