@@ -18,11 +18,12 @@ pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
 impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        let boundary_search = "\r\n\r\n".as_bytes();
         let mut stop_point: Result<usize, String> =
             Err("Could not find the \r\n\r\n boundary when parsing the HTTP Headers".to_owned());
         // look for first occurence of \r\n\r\n
         for i in 0..(value.len() - 4) {
-            if &value[i..i + 4] == "\r\n\r\n".as_bytes() {
+            if &value[i..i + 4] == boundary_search {
                 stop_point = Ok(i);
                 break;
             }
