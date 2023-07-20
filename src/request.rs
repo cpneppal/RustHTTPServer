@@ -18,25 +18,22 @@ pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
 impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        let mut stop_point: usize = 0;
+        let mut stop_point: Result<usize, String> =
+            Err("Could not find the \r\n\r\n boundary when parsing the HTTP Headers".to_owned());
         // look for first occurence of \r\n\r\n
-        for i in 0..=value.len() {
-            let four_byte_slice = &value[i..i + 4];
-            if four_byte_slice == b"\r\n\r\n" {
-                stop_point = i;
+        for i in 0..(value.len() - 4) {
+            if &value[i..i + 4] == "\r\n\r\n".as_bytes() {
+                stop_point = Ok(i);
                 break;
-            } else if i >= value.len() - 4 {
-                // bounds check. If we are at the end of the valuefer, break.
-                return Err(
-                    r"Could not find the \r\n\r\n that seperates the headers from the body"
-                        .to_owned(),
-                );
             }
         }
+        // Propogate intitial error to caller.
+        let stop_point = stop_point?;
+
         // Convert from UTF 8, map the error, then use and_then to try to convert from a string and return a result with findings.
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
-        from_utf8(&value[..=stop_point])
+        from_utf8(&value[..stop_point])
             .map_err(|_| "Could not convert byte sequence to UTF-8".to_owned())
             .and_then(HTTPRequest::from_str)
             .map(|headers| DeconstructedHTTPRequest(headers, stop_point))

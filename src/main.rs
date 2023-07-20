@@ -13,7 +13,7 @@ async fn handle_connection(mut stream: TcpStream) {
     let mut buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
     let request_size = stream
-        .read(&mut buf)
+        .read(buf.as_mut_slice())
         .await
         .expect("Could not read from stream!");
 
@@ -32,7 +32,7 @@ async fn handle_connection(mut stream: TcpStream) {
     if let Some(content_length) = request_line.content_length {
         while total_body.len() < content_length {
             let request_size = stream
-                .read(&mut buf)
+                .read(buf.as_mut_slice())
                 .await
                 .expect("Could not read from stream!");
 
