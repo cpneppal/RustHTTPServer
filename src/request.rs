@@ -5,11 +5,11 @@ use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HTTPRequest {
-    method: String,
-    path: String,
-    http_version: String,
-    content_length: Option<usize>,
-    content_type: Option<String>,
+    pub method: String,
+    pub path: String,
+    pub http_version: String,
+    pub content_length: Option<usize>,
+    pub content_type: Option<String>,
 }
 
 // Holds an HTTP Request and the index that request ends in the original byte buffer
@@ -47,7 +47,8 @@ impl FromStr for HTTPRequest {
     type Err = String;
     // Input: s as a request line, up to the first \r\n\r\n
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (first_line, _rest) = s
+        println!("Raw Request String => {s:?}");
+        let (first_line, rest) = s
             .split_once("\r\n")
             .ok_or("Could not find first line of HTTP Request")?;
 
@@ -59,12 +60,30 @@ impl FromStr for HTTPRequest {
                 "Regex for first line compiled, but couldn't find the methods on the first line",
             )?;
 
+        // Get Content Length
+        let re = Regex::new(r"content-length: (\d+)")
+            .map_err(|_| "Could not get regex to parse content-length".to_owned())?;
+
+        let content_length: Option<usize> = re
+            .captures(rest)
+            .and_then(|s| s.get(1))
+            .map(|length| length.as_str().parse().unwrap());
+
+        //Get Content Type
+        let re = Regex::new(r"Content-Type: (.+)\r\n")
+            .map_err(|_| "Could not get regex to parse content-type".to_owned())?;
+
+        let content_type: Option<String> = re
+            .captures(rest)
+            .and_then(|s| s.get(1))
+            .map(|length| length.as_str().to_owned());
+
         Ok(HTTPRequest {
             method: method.to_owned(),
             path: path.to_owned(),
             http_version: http_version.to_owned(),
-            content_length: None,
-            content_type: None,
+            content_length,
+            content_type,
         })
     }
 }

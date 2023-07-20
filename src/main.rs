@@ -1,13 +1,11 @@
 mod deserialize;
 mod request;
-use std::str::from_utf8;
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
-use deserialize::Color;
 use request::DeconstructedHTTPRequest;
 
 const BUF_SIZE: usize = 1024;
@@ -26,12 +24,22 @@ async fn handle_connection(mut stream: TcpStream) {
 
     let body = &buf[stop_point + 4..request_size];
 
-    // Get Json and filter it, removing spaces and new lines
-    // TODO: See if you can use and_then and map_err to merge the two result types into 1
-    let body = from_utf8(body).expect("Could not convert body byte sequence to UTF-8.");
-    let body: Vec<Color> = serde_json::from_str(body).expect("Couldn't parse JSON");
-    println!("Request Size: {}\n{}\n", request_size, request_line);
-    println!("Body Length: {}\nBody: {:?}", body.len(), body);
+    println!("Request Line => {request_line:?}");
+
+    let mut total_body: Vec<u8> = Vec::from(body);
+
+    // finish the stream if body length < content_length
+    if let Some(content_length) = request_line.content_length {
+        while total_body.len() < content_length {
+            let request_size = stream
+                .read(&mut buf)
+                .await
+                .expect("Could not read from stream!");
+
+            total_body.extend_from_slice(&buf[..request_size]);
+        }
+    }
+    println!("Body Length => {}", total_body.len());
     let response: &str = "HTTP/1.1 200 OK\r\n\r\n";
     stream
         .write_all(response.as_bytes())
