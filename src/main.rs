@@ -22,11 +22,9 @@ async fn handle_connection(mut stream: TcpStream) {
         .try_into()
         .expect("Could not convert buffer to HTTP Request");
 
-    let body = &buf[stop_point + 4..request_size];
-
     println!("Request Line => {request_line:?}");
 
-    let mut body: Vec<u8> = Vec::from(body);
+    let mut body: Vec<u8> = Vec::from(&buf[stop_point + 4..request_size]);
 
     // finish the stream if body length < content_length
     if let Some(content_length) = request_line.content_length {
@@ -40,6 +38,7 @@ async fn handle_connection(mut stream: TcpStream) {
         }
     }
     println!("Body Length => {}", body.len());
+    println!("Body => {body:?}");
     let response: &str = "HTTP/1.1 200 OK\r\n\r\n";
     stream
         .write_all(response.as_bytes())
