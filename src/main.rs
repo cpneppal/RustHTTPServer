@@ -1,17 +1,19 @@
 mod deserialize;
 mod request;
 mod response;
+mod route;
 
+use route::Router;
+use std::sync::Arc;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
 
 use request::DeconstructedHTTPRequest;
-use response::{HTTPError, Response};
 
 const BUF_SIZE: usize = 1024;
-async fn handle_connection(mut stream: TcpStream) {
+async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
     let mut buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
     let request_size = stream
@@ -41,12 +43,7 @@ async fn handle_connection(mut stream: TcpStream) {
     }
     println!("Body Length => {}", body.len());
     println!("Body => {body:?}");
-    let response = match request_line.path.as_str() {
-        "/hello" => Response::as_bytes(&format!("Hello, {}!", &request_line.path[1..])),
-        "/notfound" => Response::as_bytes(&HTTPError::not_found()),
-        "/internalservererror" => Response::as_bytes(&HTTPError::internal_server_error()),
-        _ => Response::as_bytes("Default Response."),
-    };
+    let response = router.handle_request(request_line, body);
     stream
         .write_all(response.as_slice())
         .await
@@ -59,14 +56,22 @@ async fn main() {
         .await
         .expect("Error binding to tcp socket.");
 
+    let router: Arc<Router> = Arc::new(
+        Router::new()
+            .route("GET", r"(\d+)$", "1.1", |_, _| {
+                Ok(Box::new("Hello, World!"))
+            })
+            .unwrap(),
+    );
+
     loop {
         let (socket, _) = listener
             .accept()
             .await
             .expect("Error unwraping the listener");
-
+        let routeref = Arc::clone(&router);
         tokio::spawn(async move {
-            handle_connection(socket).await;
+            handle_connection(socket, routeref).await;
         });
     }
 }
