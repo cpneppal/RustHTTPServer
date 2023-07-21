@@ -15,9 +15,9 @@ pub struct HTTPRequest {
 // Holds an HTTP Request and the index that request ends in the original byte buffer
 pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
 
-impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
+impl TryFrom<&[u8]> for DeconstructedHTTPRequest {
     type Error = String;
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let boundary_search = "\r\n\r\n".as_bytes();
         let mut stop_point: Result<usize, String> =
             Err("Could not find the \r\n\r\n boundary when parsing the HTTP Headers".to_owned());
@@ -48,7 +48,7 @@ impl FromStr for HTTPRequest {
         println!("Raw Request String => {s:?}");
         let (first_line, rest) = s
             .split_once("\r\n")
-            .ok_or("Could not find first line of HTTP Request")?;
+            .ok_or("Could not find first line of HTTP Request".to_owned())?;
 
         let re = Regex::new(r"([A-Z]+)\s+(/[^\s]*)\s+HTTP/(\d\.\d)")
             .map_err(|_| "Could not get regex to parse first line".to_owned())?;
@@ -97,7 +97,21 @@ impl fmt::Display for HTTPRequest {
 mod tests {
 
     use super::*;
-
+    fn new_request(
+        method: &str,
+        path: &str,
+        http_version: &str,
+        content_length: Option<usize>,
+        content_type: Option<&str>,
+    ) -> HTTPRequest {
+        HTTPRequest {
+            method: method.to_owned(),
+            path: path.to_owned(),
+            http_version: http_version.to_owned(),
+            content_length,
+            content_type: content_type.map(|s| s.to_owned()),
+        }
+    }
     #[test]
     fn valid_get_request() {
         let test_bytes: &[u8] = &[
@@ -113,13 +127,7 @@ mod tests {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
-        let expected_answer: HTTPRequest = HTTPRequest {
-            method: "GET".to_owned(),
-            path: "/".to_owned(),
-            http_version: "1.1".to_owned(),
-            content_length: None,
-            content_type: None,
-        };
+        let expected_answer: HTTPRequest = new_request("GET", "/", "1.1", None, None);
 
         let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()
@@ -155,13 +163,8 @@ mod tests {
             110, 111, 110, 101, 13, 10, 83, 101, 99, 45, 70, 101, 116, 99, 104, 45, 85, 115, 101,
             114, 58, 32, 63, 49, 13, 10, 13, 10, 0, 0,
         ];
-        let expected_answer: HTTPRequest = HTTPRequest {
-            method: "GET".to_owned(),
-            path: "/hello".to_owned(),
-            http_version: "1.1".to_owned(),
-            content_length: None,
-            content_type: None,
-        };
+        let expected_answer: HTTPRequest = new_request("GET", "/hello", "1.1", None, None);
+
         let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()
             .expect("Could not convert byte slice into HTTP Request");
