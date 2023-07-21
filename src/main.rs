@@ -1,5 +1,6 @@
 mod deserialize;
 mod request;
+mod response;
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -7,6 +8,7 @@ use tokio::{
 };
 
 use request::DeconstructedHTTPRequest;
+use response::{HTTPError, Response};
 
 const BUF_SIZE: usize = 1024;
 async fn handle_connection(mut stream: TcpStream) {
@@ -39,9 +41,14 @@ async fn handle_connection(mut stream: TcpStream) {
     }
     println!("Body Length => {}", body.len());
     println!("Body => {body:?}");
-    let response: &str = "HTTP/1.1 200 OK\r\n\r\n";
+    let response = match request_line.path.as_str() {
+        "/hello" => Response::as_bytes(&format!("Hello, {}!", &request_line.path[1..])),
+        "/notfound" => Response::as_bytes(&HTTPError::not_found()),
+        "/internalservererror" => Response::as_bytes(&HTTPError::internal_server_error()),
+        _ => Response::as_bytes("Default Response."),
+    };
     stream
-        .write_all(response.as_bytes())
+        .write_all(response.as_slice())
         .await
         .expect("Error writing response");
 }
