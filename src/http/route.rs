@@ -1,7 +1,4 @@
-use crate::{
-    request::HTTPRequest,
-    response::{HTTPError, Response, Result},
-};
+use super::{request::HTTPRequest, HTTPResponses, Response, Result};
 
 // import the Regex and Regex Error package
 use regex::{Error, Regex};
@@ -12,7 +9,7 @@ struct InternalRoute {
     method: String,
     path: Regex,
     http_version: String,
-    callback: fn(HTTPRequest, Vec<u8>) -> Result<Box<dyn Response>>,
+    callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
 }
 
 impl PartialEq<HTTPRequest> for InternalRoute {
@@ -44,13 +41,24 @@ impl Router {
         }
     }
 
-    // Register a route in the router object. Consumes self and returns it back in either an Ok variant or an error when parsing the
+    /// Consumes self and other router and attaches other router's routes to current router
+    pub fn with(mut self, mut other: Router) -> Self {
+        self.internal_route_vec
+            .append(&mut other.internal_route_vec);
+        self
+    }
+    /// Registers a route in the router object. Consumes self and returns it back in either an Ok variant or an error when parsing the path
+    /// # Parameters
+    ///  * method      : The method name. This is matched as a string.
+    ///  * path        : A regular expression string. This is matched as a regex and regex tokens may be included.
+    ///  * http_version: This is matched as a string. The HTTP Version
+    ///  * callback    : A function poiner that accepts an HTTP request and a vector of bytes being the body of the request. Return a Result variant comprising of Ok(good response) or Err(Error Response)            
     pub fn route(
         mut self,
         method: &str,
         path: &str,
         http_version: &str,
-        callback: fn(HTTPRequest, Vec<u8>) -> Result<Box<dyn Response>>,
+        callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
     ) -> result::Result<Self, Error> {
         self.internal_route_vec.push(InternalRoute {
             method: method.to_owned(),
@@ -62,11 +70,13 @@ impl Router {
         Ok(self)
     }
 
+    /// Takes a mutable reference to self, consumes an HTTPRequest and body and returns a vector of bytes which is an HTTP Response encoded.
+    /// If there aren't any routes that handle the request, then an `HTTP 404` error is returned. Additional errors may be returned from the callback of the route that handles the request.
     pub fn handle_request(&self, request: HTTPRequest, body: Vec<u8>) -> Vec<u8> {
         self.internal_route_vec
             .iter()
             .find(|route| route == &&request)
-            .ok_or(HTTPError::not_found())
+            .ok_or(HTTPResponses::not_found())
             .and_then(|route| (route.callback)(request, body))
             .map(|result| result.to_response())
             .map_or_else(|error| error.to_response(), |success| success)

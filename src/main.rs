@@ -1,16 +1,11 @@
-mod deserialize;
-mod request;
-mod response;
-mod route;
+mod http;
 
-use route::Router;
+use http::{DeconstructedHTTPRequest, Router};
 use std::sync::Arc;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
 };
-
-use request::DeconstructedHTTPRequest;
 
 const BUF_SIZE: usize = 1024;
 async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
@@ -42,7 +37,6 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
         }
     }
     println!("Body Length => {}", body.len());
-    println!("Body => {body:?}");
     let response = router.handle_request(request_line, body);
     stream
         .write_all(response.as_slice())
@@ -56,13 +50,7 @@ async fn main() {
         .await
         .expect("Error binding to tcp socket.");
 
-    let router: Arc<Router> = Arc::new(
-        Router::new()
-            .route("GET", r"(\d+)$", "1.1", |_, _| {
-                Ok(Box::new("Hello, World!"))
-            })
-            .unwrap(),
-    );
+    let router: Arc<Router> = Arc::new(Router::new().with(http::http_routes()));
 
     loop {
         let (socket, _) = listener
