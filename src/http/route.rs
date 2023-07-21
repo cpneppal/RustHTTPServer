@@ -78,7 +78,6 @@ impl Router {
             .find(|route| route == &&request)
             .ok_or(HTTPResponses::not_found())
             .and_then(|route| (route.callback)(request, body))
-            .map(|result| result.to_response())
-            .map_or_else(|error| error.to_response(), |success| success)
+            .map_or_else(|error| error.to_response(), |success| success.to_response())
     }
 }
