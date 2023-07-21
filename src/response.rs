@@ -4,7 +4,7 @@ use std::result;
 pub type Result<T> = result::Result<T, HTTPError>;
 
 pub trait Response {
-    /// as_bytes takes a reference self into a vector of bytes that can be fed through a TCP Stream.
+    /// into_response takes a reference self into a vector of bytes that can be fed through a TCP Stream.
     fn to_response(&self) -> Vec<u8>;
 }
 
