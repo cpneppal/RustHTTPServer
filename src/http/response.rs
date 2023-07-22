@@ -10,7 +10,7 @@ pub trait Response {
 }
 
 /// Common response types for plain text, hmtl, javascript and so on.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HTTPResponses {
     PlainText(String),
     Html(String),
@@ -101,24 +101,37 @@ impl HTTPResponses {
     }
 }
 
-// Plain Text as (as String)
+/// Adds functionality for `From<String>`.
+/// Can use the `into` method for `String` to convert into a plaintext response. For example:
+/// ```rust
+/// String::from("Hello").into() // Now HTTPResponses::PlainText("Hello")
+/// ````
 impl From<String> for HTTPResponses {
     fn from(value: String) -> Self {
         Self::PlainText(value)
     }
 }
-// Plain Text (as &str)
+/// Adds functionality for `From<&str>`.
+/// Can use the `into` method for `&str` to convert into a plaintext response. Calls the parse method which implicity invokes HTTPResponses' `FromStr` implementation. For example:
+/// ```rust
+/// // Equivalent to "Hello".parse.unwrap()
+/// "Hello".into() // Now HTTPResponses::PlainText("Hello")
+/// ````
 impl From<&str> for HTTPResponses {
     fn from(value: &str) -> Self {
         // This can never fail, so call unwrap without worry
-        Self::from_str(value).unwrap()
+        value.parse().unwrap()
     }
 }
 
-// Plain Text (as string)
+/// Adds functionality for parse. Can use the `parse()` method for `&str` to convert into a plaintext response. For example:
+/// ```rust
+/// "Hello".parse().unrwap() // Result<HTTPResponses::PlainText("Hello"), String> -> HTTPResponses::PlainText("Hello")
+/// ```
+/// Note: This returns a result, but the result is always an `Ok` variant. Because of this, it is safe to call `unwrap()` as no error can be returned.
 impl FromStr for HTTPResponses {
     type Err = String;
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        Ok(Self::PlainText(s.to_owned()))
+        Ok(Self::from(s.to_owned()))
     }
 }
