@@ -1,4 +1,3 @@
-mod http;
 mod sample_routes;
 use http::{DeconstructedHTTPRequest, Router};
 use std::sync::Arc;

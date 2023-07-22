@@ -1,6 +1,4 @@
-use super::http;
-use http::HTTPResponses;
-use http::{HTTPRequest, HTTPResponses::*, Result, Router};
+use http::{HTTPRequest, HTTPResponses, Result, Router};
 
 pub fn http_routes() -> Router {
     Router::new()
@@ -22,7 +20,10 @@ fn get_image(_headers: HTTPRequest, body: Vec<u8>) -> Result<HTTPResponses> {
 fn print_json(_headers: HTTPRequest, body: Vec<u8>) -> Result<HTTPResponses> {
     println!(
         "Json Receieved: {}",
-        String::from_utf8(body).map_err(|_| HTTPResponses::internal_server_error())?
+        String::from_utf8(body).map_err(|err| {
+            eprintln!("Could not format the body as JSON => {err}");
+            HTTPResponses::internal_server_error()
+        })?
     );
     Ok("Received Json!".into())
 }

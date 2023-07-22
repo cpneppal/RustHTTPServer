@@ -19,8 +19,9 @@ pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
 impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        let boundary = BRegex::new("\r\n\r\n")
-            .map_err(|_| "Could not construct regex for double carriage new line!".to_owned())?;
+        let boundary = BRegex::new("\r\n\r\n").map_err(|err| {
+            format!("Could not construct regex for double carriage new line! => {err}")
+        })?;
 
         let value = boundary
             .splitn(value, 2)
@@ -31,7 +32,7 @@ impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
         from_utf8(value)
-            .map_err(|_| "Could not convert byte sequence to UTF-8".to_owned())
+            .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
             .and_then(HTTPRequest::from_str)
             .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
     }
