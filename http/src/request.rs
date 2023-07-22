@@ -48,7 +48,7 @@ impl FromStr for HTTPRequest {
             .ok_or("Could not find first line of HTTP Request".to_owned())?;
 
         let re = Regex::new(r"([A-Z]+)\s+(/[^\s]*)\s+HTTP/(\d\.\d)")
-            .map_err(|_| "Could not get regex to parse first line".to_owned())?;
+            .map_err(|err| format!("Could not get regex to parse first line => {err}"))?;
 
         let (_, [method, path, http_version]) =
             re.captures(first_line).map(|s| s.extract()).ok_or(
@@ -57,7 +57,7 @@ impl FromStr for HTTPRequest {
 
         // Get Content Length
         let re = Regex::new(r"content-length: (\d+)")
-            .map_err(|_| "Could not get regex to parse content-length".to_owned())?;
+            .map_err(|err| format!("Could not get regex to parse content-length => {err}"))?;
 
         let content_length: Option<usize> = re
             .captures(rest)
@@ -66,7 +66,7 @@ impl FromStr for HTTPRequest {
 
         //Get Content Type
         let re = Regex::new(r"Content-Type: (.+)\r\n")
-            .map_err(|_| "Could not get regex to parse content-type".to_owned())?;
+            .map_err(|err| format!("Could not get regex to parse content-type => {err}"))?;
 
         let content_type: Option<String> = re
             .captures(rest)
