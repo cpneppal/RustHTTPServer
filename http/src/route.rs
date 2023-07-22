@@ -1,4 +1,4 @@
-use super::{request::HTTPRequest, HTTPResponses, Response, Result};
+use super::{HTTPRequest, HTTPResponses, Response, Result};
 
 // import the Regex and Regex Error package
 use regex::{Error, Regex};
