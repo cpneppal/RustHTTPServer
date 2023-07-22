@@ -6,7 +6,7 @@ use std::result;
 
 #[derive(Debug)]
 struct InternalRoute {
-    method: String,
+    method: Regex,
     path: Regex,
     http_version: String,
     callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
@@ -14,7 +14,7 @@ struct InternalRoute {
 
 impl PartialEq<HTTPRequest> for InternalRoute {
     fn eq(&self, other: &HTTPRequest) -> bool {
-        self.method == other.method
+        self.method.is_match_at(&other.method, 0)
             && self.path.is_match_at(&other.path, 0)
             && self.http_version == other.http_version
     }
@@ -61,7 +61,7 @@ impl Router {
         callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
     ) -> result::Result<Self, Error> {
         self.internal_route_vec.push(InternalRoute {
-            method: method.to_owned(),
+            method: Regex::new(method)?,
             path: Regex::new(path)?,
             http_version: http_version.to_owned(),
             callback,
@@ -78,6 +78,6 @@ impl Router {
             .find(|route| route == &&request)
             .ok_or(HTTPResponses::not_found())
             .and_then(|route| (route.callback)(request, body))
-            .map_or_else(|error| error.to_response(), |success| success.to_response())
+            .map_or_else(HTTPResponses::to_response, HTTPResponses::to_response)
     }
 }
