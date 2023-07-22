@@ -16,14 +16,14 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
         .await
         .expect("Could not read from stream!");
 
-    let DeconstructedHTTPRequest(request_line, stop_point) = buf
+    let DeconstructedHTTPRequest(request_line, body_start) = buf
         .as_slice()
         .try_into()
         .expect("Could not convert buffer to HTTP Request");
 
     println!("Request Line => {request_line:?}");
 
-    let mut body: Vec<u8> = Vec::from(&buf[stop_point + 4..request_size]);
+    let mut body: Vec<u8> = Vec::from(&buf[body_start..request_size]);
 
     // finish the stream if body length < content_length
     if let Some(content_length) = request_line.content_length {
