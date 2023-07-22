@@ -18,6 +18,10 @@ pub enum HTTPResponses {
     Css(String),
     Json(String),
     Redirect(String),
+    Image {
+        ext: String,
+        content: Vec<u8>,
+    },
     HTTPError {
         status_code: i32,
         message: String,
@@ -37,28 +41,37 @@ impl Response for HTTPResponses {
             )
             .into_bytes()
         } else {
-            let (code, message, ctype, length, content) = match self {
-                Self::PlainText(s) => (200, "OK".to_owned(), "text/plain", s.len(), s),
-                Self::Html(s) => (200, "OK".to_owned(), "text/html; charset=utf-8", s.len(), s),
-                Self::JavaScript(s) => (200, "OK".to_owned(), "text/javascript", s.len(), s),
-                Self::Css(s) => (200, "OK".to_owned(), "text/css", s.len(), s),
-                Self::Json(s) => (200, "OK".to_owned(), "application/json", s.len(), s),
+            let (code, message, ctype, length, mut content) = match self {
+                Self::PlainText(s) => Self::helper_common_str("text/plain".to_owned(), s),
+                Self::Html(s) => Self::helper_common_str("text/html; charset=utf-8".to_owned(), s),
+                Self::JavaScript(s) => Self::helper_common_str("text/javascript".to_owned(), s),
+                Self::Css(s) => Self::helper_common_str("text/css".to_owned(), s),
+                Self::Json(s) => Self::helper_common_str("application/json".to_owned(), s),
+                Self::Image { ext, content } => {
+                    Self::helper_common(format!("image/{ext}"), content)
+                }
                 Self::HTTPError {
                     status_code,
                     message,
                     body,
-                } => (status_code, message, "text/plain", body.len(), body),
+                } => (
+                    status_code,
+                    message,
+                    "text/plain".to_owned(),
+                    body.len(),
+                    body.into_bytes(),
+                ),
                 _ => panic!("Unreachable!"),
             };
-
-            format!(
+            let mut r = format!(
                 "HTTP/1.1 {code} {message}\r\n\
                 X-Content-Type-Options: nosniff\r\n\
                 Content-Type: {ctype}\r\n\
-                Content-Length: {length}\r\n\r\n\
-                {content}"
+                Content-Length: {length}\r\n\r\n"
             )
-            .into_bytes()
+            .into_bytes();
+            r.append(&mut content);
+            r
         }
     }
 }
@@ -77,6 +90,14 @@ impl HTTPResponses {
             message: "Internal Server Error".to_owned(),
             body: "The server has encountered an unexpected error.".to_owned(),
         }
+    }
+    // A wrapper helper function for responses whose content is a vector of strings
+    fn helper_common_str(ctype: String, content: String) -> (i32, String, String, usize, Vec<u8>) {
+        Self::helper_common(ctype, content.into_bytes())
+    }
+    // A helper function for responses whose content is a vector of bytes
+    fn helper_common(ctype: String, content: Vec<u8>) -> (i32, String, String, usize, Vec<u8>) {
+        (200, "OK".to_owned(), ctype, content.len(), content)
     }
 }
 
