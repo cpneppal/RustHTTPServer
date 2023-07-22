@@ -38,7 +38,7 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
         }
     }
     println!("Body Length => {}", body.len());
-    let response = router.handle_request(request_line, body);
+    let response = router.handle_request(request_line, body).await;
     stream
         .write_all(response.as_slice())
         .await
