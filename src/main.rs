@@ -1,5 +1,5 @@
 mod http;
-
+mod sample_routes;
 use http::{DeconstructedHTTPRequest, Router};
 use std::sync::Arc;
 use tokio::{
@@ -52,7 +52,7 @@ async fn main() {
         .await
         .expect("Error binding to tcp socket.");
 
-    let router: Arc<Router> = Arc::new(Router::new().with(http::http_routes()));
+    let router: Arc<Router> = Arc::new(Router::new().with(sample_routes::http_routes()));
 
     loop {
         let (socket, _) = listener
