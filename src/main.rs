@@ -23,10 +23,12 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
 
     println!("Request Line => {request_line:?}");
 
-    let mut body: Vec<u8> = Vec::from(&buf[body_start..request_size]);
+    // allocate a vector of bytes that has a capcity of the content length if it exists or 0
+    let mut body: Vec<u8> = Vec::with_capacity(request_line.content_length.unwrap_or_default());
 
     // finish the stream if body length < content_length
     if let Some(content_length) = request_line.content_length {
+        body.extend_from_slice(&buf[body_start..request_size]);
         while body.len() < content_length {
             let request_size = stream
                 .read(buf.as_mut_slice())
