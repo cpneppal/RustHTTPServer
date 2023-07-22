@@ -72,7 +72,8 @@ impl Router {
 
     /// Takes a mutable reference to self, consumes an HTTPRequest and body and returns a vector of bytes which is an HTTP Response encoded.
     /// If there aren't any routes that handle the request, then an `HTTP 404` error is returned. Additional errors may be returned from the callback of the route that handles the request.
-    pub fn handle_request(&self, request: HTTPRequest, body: Vec<u8>) -> Vec<u8> {
+    /// Is async, so it returns a [`Future`] with a [`Vec<u8>`] output.
+    pub async fn handle_request(&self, request: HTTPRequest, body: Vec<u8>) -> Vec<u8> {
         self.internal_route_vec
             .iter()
             .find(|route| route == &&request)
