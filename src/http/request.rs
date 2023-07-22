@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::{from_utf8, FromStr};
 
+use regex::bytes::Regex as BRegex;
 use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,29 +16,24 @@ pub struct HTTPRequest {
 // Holds an HTTP Request and the index that request ends in the original byte buffer
 pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
 
-impl TryFrom<&[u8]> for DeconstructedHTTPRequest {
+impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let boundary_search = "\r\n\r\n".as_bytes();
-        let mut stop_point: Result<usize, String> =
-            Err("Could not find the \r\n\r\n boundary when parsing the HTTP Headers".to_owned());
-        // look for first occurence of \r\n\r\n
-        for i in 0..(value.len() - 4) {
-            if &value[i..i + 4] == boundary_search {
-                stop_point = Ok(i);
-                break;
-            }
-        }
-        // Propogate intitial error to caller.
-        let stop_point = stop_point?;
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        let boundary = BRegex::new("\r\n\r\n")
+            .map_err(|_| "Could not construct regex for double carriage new line!".to_owned())?;
+
+        let value = boundary
+            .splitn(value, 2)
+            .next()
+            .ok_or("Could not find HTTP Headers from Byte Slice".to_owned())?;
 
         // Convert from UTF 8, map the error, then use and_then to try to convert from a string and return a result with findings.
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
-        from_utf8(&value[..stop_point])
+        from_utf8(value)
             .map_err(|_| "Could not convert byte sequence to UTF-8".to_owned())
             .and_then(HTTPRequest::from_str)
-            .map(|headers| DeconstructedHTTPRequest(headers, stop_point))
+            .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
     }
 }
 
