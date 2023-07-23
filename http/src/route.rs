@@ -1,4 +1,4 @@
-use super::{HTTPRequest, HTTPResponses, Response, Result};
+use super::{HTTPRequest, HTTPResponses, HTTPResult, Response};
 
 // import the Regex and Regex Error package
 use regex::{Error, Regex};
@@ -9,7 +9,7 @@ struct InternalRoute {
     method: Regex,
     path: Regex,
     http_version: String,
-    callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
+    callback: fn(HTTPRequest, Vec<u8>) -> HTTPResult,
 }
 
 impl PartialEq<HTTPRequest> for InternalRoute {
@@ -58,7 +58,7 @@ impl Router {
         method: &str,
         path: &str,
         http_version: &str,
-        callback: fn(HTTPRequest, Vec<u8>) -> Result<HTTPResponses>,
+        callback: fn(HTTPRequest, Vec<u8>) -> HTTPResult,
     ) -> result::Result<Self, Error> {
         self.internal_route_vec.push(InternalRoute {
             method: Regex::new(method)?,
@@ -79,6 +79,6 @@ impl Router {
             .find(|route| route == &&request)
             .ok_or(HTTPResponses::not_found())
             .and_then(|route| (route.callback)(request, body))
-            .map_or_else(HTTPResponses::to_response, HTTPResponses::to_response)
+            .map_or_else(|err| err.to_response(), |ok| ok.to_response())
     }
 }

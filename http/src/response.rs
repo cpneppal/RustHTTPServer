@@ -1,7 +1,16 @@
+use std::collections::HashMap;
 use std::result;
 use std::str::FromStr;
 /// The HTTP Result type.
-pub type Result<T> = result::Result<T, HTTPResponses>;
+pub type HTTPResult = result::Result<Box<HTTPResponses>, Box<HTTPResponses>>;
+
+pub fn http_ok(value: HTTPResponses) -> HTTPResult {
+    Ok(Box::new(value))
+}
+
+pub fn http_err(err: HTTPResponses) -> HTTPResult {
+    Err(Box::new(err))
+}
 
 pub trait Response {
     /// Into Response consumes self and returns a vector of bytes as a TCP stream.
@@ -27,6 +36,13 @@ pub enum HTTPResponses {
         message: String,
         body: String,
     },
+    Custom {
+        code: i32,
+        message: String,
+        ctype: String,
+        headers: Option<HashMap<String, String>>,
+        body: Vec<u8>,
+    },
 }
 
 /// When converting to response, if statements handle special cases. For instance, redirect's HTTP status code is different from the rest, so it needs to be handled separatley. This helps to avoid writing duplicate code.
@@ -41,63 +57,87 @@ impl Response for HTTPResponses {
             )
             .into_bytes()
         } else {
-            let (code, message, ctype, length, mut content) = match self {
-                Self::PlainText(s) => Self::helper_common_str("text/plain".to_owned(), s),
-                Self::Html(s) => Self::helper_common_str("text/html; charset=utf-8".to_owned(), s),
-                Self::JavaScript(s) => Self::helper_common_str("text/javascript".to_owned(), s),
-                Self::Css(s) => Self::helper_common_str("text/css".to_owned(), s),
-                Self::Json(s) => Self::helper_common_str("application/json".to_owned(), s),
-                Self::Image { ext, content } => {
-                    Self::helper_common(format!("image/{ext}"), content)
+            match self {
+                Self::PlainText(s) => Self::craft_string_response(200, "OK", "text/plain", s),
+                Self::Html(s) => {
+                    Self::craft_string_response(200, "OK", "text/html; charset=utf-8", s)
                 }
+                Self::JavaScript(s) => Self::craft_string_response(200, "OK", "text/javascript", s),
+                Self::Css(s) => Self::craft_string_response(200, "OK", "text/css", s),
+                Self::Json(s) => Self::craft_string_response(200, "OK", "application/json", s),
+                Self::Image { ext, content } => Self::craft_byte_response(
+                    200,
+                    "OK",
+                    format!("image/{ext}").as_str(),
+                    None,
+                    content,
+                ),
                 Self::HTTPError {
                     status_code,
                     message,
                     body,
-                } => (
-                    status_code,
+                } => Self::craft_string_response(status_code, message.as_str(), "text/plain", body),
+                Self::Custom {
+                    code,
                     message,
-                    "text/plain".to_owned(),
-                    body.len(),
-                    body.into_bytes(),
-                ),
+                    ctype,
+                    headers,
+                    body,
+                } => {
+                    Self::craft_byte_response(code, message.as_str(), ctype.as_str(), headers, body)
+                }
                 _ => panic!("Unreachable!"),
-            };
-            let mut r = format!(
-                "HTTP/1.1 {code} {message}\r\n\
-                X-Content-Type-Options: nosniff\r\n\
-                Content-Type: {ctype}\r\n\
-                Content-Length: {length}\r\n\r\n"
-            )
-            .into_bytes();
-            r.append(&mut content);
-            r
+            }
         }
     }
 }
 impl HTTPResponses {
-    pub fn not_found() -> Self {
-        Self::HTTPError {
+    pub fn not_found() -> Box<Self> {
+        Box::new(Self::HTTPError {
             status_code: 404,
             message: "Not found".to_owned(),
             body: "The requested content could not be found.".to_owned(),
-        }
+        })
     }
 
-    pub fn internal_server_error() -> Self {
-        Self::HTTPError {
+    pub fn internal_server_error() -> Box<Self> {
+        Box::new(Self::HTTPError {
             status_code: 500,
             message: "Internal Server Error".to_owned(),
             body: "The server has encountered an unexpected error.".to_owned(),
-        }
+        })
     }
-    // A wrapper helper function for responses whose content is a vector of strings
-    fn helper_common_str(ctype: String, content: String) -> (i32, String, String, usize, Vec<u8>) {
-        Self::helper_common(ctype, content.into_bytes())
+    // Crafts a successful 2XX response on "text" content (HTML, PlainText, Json, etc...)
+    fn craft_string_response(code: i32, message: &str, ctype: &str, content: String) -> Vec<u8> {
+        Self::craft_byte_response(code, message, ctype, None, content.into_bytes())
     }
-    // A helper function for responses whose content is a vector of bytes
-    fn helper_common(ctype: String, content: Vec<u8>) -> (i32, String, String, usize, Vec<u8>) {
-        (200, "OK".to_owned(), ctype, content.len(), content)
+
+    // Crafts a successful 2XX response on "byte" content (Images, etc...)
+    fn craft_byte_response(
+        code: i32,
+        message: &str,
+        ctype: &str,
+        headers: Option<HashMap<String, String>>,
+        mut content: Vec<u8>,
+    ) -> Vec<u8> {
+        let headers: String = headers
+            .map(|h| {
+                h.into_iter()
+                    .map(|(a, b)| format!("{a}: {b}\r\n"))
+                    .collect()
+            })
+            .unwrap_or(String::from(""));
+        let mut response = format!(
+            "HTTP/1.1 {code} {message}\r\n\
+            X-Content-Type-Options: nosniff\r\n\
+            Content-Type: {ctype}\r\n\
+            {headers}\
+            Content-Length: {}\r\n\r\n",
+            content.len(),
+        )
+        .into_bytes();
+        response.append(&mut content);
+        response
     }
 }
 
