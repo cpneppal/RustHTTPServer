@@ -1,5 +1,8 @@
+mod parser;
 mod sample_routes;
+use clap::Parser;
 use http::{DeconstructedHTTPRequest, Router};
+use parser::HTTPArgs;
 use std::sync::Arc;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -47,9 +50,18 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("127.0.0.1:8080")
-        .await
-        .expect("Error binding to tcp socket.");
+    let HTTPArgs { ip_addr, port } = parser::HTTPArgs::parse();
+    let listener = TcpListener::bind({
+        let address = format!(
+            "{}:{}",
+            ip_addr.unwrap_or("127.0.0.1".to_owned()),
+            port.unwrap_or(8080)
+        );
+        println!("Starting server on {address}");
+        address
+    })
+    .await
+    .expect("Error binding to tcp socket.");
 
     let router: Arc<Router> = Arc::new(Router::new().with(sample_routes::http_routes()));
 
