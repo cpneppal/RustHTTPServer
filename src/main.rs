@@ -10,6 +10,7 @@ use tokio::{
 };
 
 const BUF_SIZE: usize = 1024;
+const RETRIES: u8 = 5;
 async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
     let mut buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
 
@@ -29,14 +30,18 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
     let mut body: Vec<u8> = Vec::with_capacity(request_line.content_length.unwrap_or_default());
 
     // finish the stream if body length < content_length
+    // Retry 3 times if failed to get current stream
     if let Some(content_length) = request_line.content_length {
+        let mut retries = 1;
         body.extend_from_slice(&buf[body_start..request_size]);
-        while body.len() < content_length {
-            let request_size = stream
-                .read(buf.as_mut_slice())
-                .await
-                .expect("Could not read from stream!");
-
+        while body.len() < content_length && retries <= RETRIES {
+            let request_size = stream.read(buf.as_mut_slice()).await.unwrap_or_else(|err| {
+                retries += 1;
+                eprintln!("Error finishing body stream. Was able to read {} bytes out of {content_length} bytes.
+                Trying again. This is attempt {retries} out of {RETRIES}.
+                Error message: {err}", body.len());             
+                0
+            });
             body.extend_from_slice(&buf[..request_size]);
         }
     }
