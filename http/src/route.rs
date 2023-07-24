@@ -9,11 +9,13 @@ struct InternalRoute {
     method: Regex,
     path: Regex,
     http_version: String,
-    callback: fn(HTTPRequest, Vec<u8>) -> HTTPResult,
+    callback: fn(HTTPRequest) -> HTTPResult,
 }
 
+/// In this partial eq implementation, we use function parameter pattern matchin (see https://doc.rust-lang.org/book/ch18-01-all-the-places-for-patterns.html#function-parameters) to extract only the headers, which we then use for comparison.
+/// The eq method still takes the whole, request, but we only care about the headers and wildcard the body.
 impl PartialEq<HTTPRequest> for InternalRoute {
-    fn eq(&self, other: &HTTPRequest) -> bool {
+    fn eq(&self, HTTPRequest(other, _): &HTTPRequest) -> bool {
         self.method.is_match_at(&other.method, 0)
             && self.path.is_match_at(&other.path, 0)
             && self.http_version == other.http_version
@@ -58,7 +60,7 @@ impl Router {
         method: &str,
         path: &str,
         http_version: &str,
-        callback: fn(HTTPRequest, Vec<u8>) -> HTTPResult,
+        callback: fn(HTTPRequest) -> HTTPResult,
     ) -> result::Result<Self, Error> {
         self.internal_route_vec.push(InternalRoute {
             method: Regex::new(method)?,
@@ -73,12 +75,12 @@ impl Router {
     /// Takes a mutable reference to self, consumes an HTTPRequest and body and returns a vector of bytes which is an HTTP Response encoded.
     /// If there aren't any routes that handle the request, then an `HTTP 404` error is returned. Additional errors may be returned from the callback of the route that handles the request.
     /// Is async, so it returns a [`Future`] with a [`Vec<u8>`] output.
-    pub async fn handle_request(&self, request: HTTPRequest, body: Vec<u8>) -> Vec<u8> {
+    pub async fn handle_request(&self, request: HTTPRequest) -> Vec<u8> {
         self.internal_route_vec
             .iter()
             .find(|route| route == &&request)
             .ok_or(HTTPResponses::not_found())
-            .and_then(|route| (route.callback)(request, body))
+            .and_then(|route| (route.callback)(request))
             .map_or_else(|err| err.to_response(), |ok| ok.to_response())
     }
 }

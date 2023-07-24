@@ -5,7 +5,7 @@ use regex::bytes::Regex as BRegex;
 use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HTTPRequest {
+pub struct HTTPRequestHeader {
     pub method: String,
     pub path: String,
     pub http_version: String,
@@ -13,8 +13,12 @@ pub struct HTTPRequest {
     pub content_type: Option<String>,
 }
 
+// Wrapper for HTTPRequestHeader and a Vec<u8> representing the body
+#[derive(Debug, PartialEq, Eq)]
+pub struct HTTPRequest(pub HTTPRequestHeader, pub Vec<u8>);
+
 // Holds an HTTP Request and the index that request ends in the original byte buffer
-pub struct DeconstructedHTTPRequest(pub HTTPRequest, pub usize);
+pub struct DeconstructedHTTPRequest(pub HTTPRequestHeader, pub usize);
 
 impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
     type Error = String;
@@ -33,12 +37,12 @@ impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
         from_utf8(value)
             .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
-            .and_then(HTTPRequest::from_str)
+            .and_then(HTTPRequestHeader::from_str)
             .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
     }
 }
 
-impl FromStr for HTTPRequest {
+impl FromStr for HTTPRequestHeader {
     type Err = String;
     // Input: s as a request line, up to the first \r\n\r\n
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -73,7 +77,7 @@ impl FromStr for HTTPRequest {
             .and_then(|s| s.get(1))
             .map(|length| length.as_str().to_owned());
 
-        Ok(HTTPRequest {
+        Ok(HTTPRequestHeader {
             method: method.to_owned(),
             path: path.to_owned(),
             http_version: http_version.to_owned(),
@@ -83,7 +87,7 @@ impl FromStr for HTTPRequest {
     }
 }
 
-impl fmt::Display for HTTPRequest {
+impl fmt::Display for HTTPRequestHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "HTTP Method  : {}", self.method)?;
         writeln!(f, "Path         : {}", self.path)?;
@@ -100,8 +104,8 @@ mod tests {
         http_version: &str,
         content_length: Option<usize>,
         content_type: Option<&str>,
-    ) -> HTTPRequest {
-        HTTPRequest {
+    ) -> HTTPRequestHeader {
+        HTTPRequestHeader {
             method: method.to_owned(),
             path: path.to_owned(),
             http_version: http_version.to_owned(),
@@ -124,7 +128,7 @@ mod tests {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
-        let expected_answer: HTTPRequest = new_request("GET", "/", "1.1", None, None);
+        let expected_answer: HTTPRequestHeader = new_request("GET", "/", "1.1", None, None);
 
         let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()
@@ -160,7 +164,7 @@ mod tests {
             110, 111, 110, 101, 13, 10, 83, 101, 99, 45, 70, 101, 116, 99, 104, 45, 85, 115, 101,
             114, 58, 32, 63, 49, 13, 10, 13, 10, 0, 0,
         ];
-        let expected_answer: HTTPRequest = new_request("GET", "/hello", "1.1", None, None);
+        let expected_answer: HTTPRequestHeader = new_request("GET", "/hello", "1.1", None, None);
 
         let DeconstructedHTTPRequest(actual_answer, _) = test_bytes
             .try_into()

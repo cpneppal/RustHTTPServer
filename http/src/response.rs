@@ -144,8 +144,13 @@ impl HTTPResponses {
 /// Adds functionality for `From<String>`.
 /// Can use the `into` method for `String` to convert into a plaintext response. For example:
 /// ```rust
-/// String::from("Hello").into() // Now HTTPResponses::PlainText("Hello")
-/// ````
+/// # use http::HTTPResponses;
+/// let x: HTTPResponses = String::from("Hello").into(); // Now HTTPResponses::PlainText("Hello")
+/// match x {
+///     HTTPResponses::PlainText(s) => assert_eq!(s, "Hello"),
+///     _ => panic!("Test failed as x was not plain text")
+/// }
+/// ```
 impl From<String> for HTTPResponses {
     fn from(value: String) -> Self {
         Self::PlainText(value)
@@ -154,9 +159,14 @@ impl From<String> for HTTPResponses {
 /// Adds functionality for `From<&str>`.
 /// Can use the `into` method for `&str` to convert into a plaintext response. Calls the parse method which implicity invokes HTTPResponses' `FromStr` implementation. For example:
 /// ```rust
+/// # use http::HTTPResponses;
 /// // Equivalent to "Hello".parse.unwrap()
-/// "Hello".into() // Now HTTPResponses::PlainText("Hello")
-/// ````
+/// let x: HTTPResponses = "Hello".into(); // Now HTTPResponses::PlainText("Hello")
+/// match x {
+///     HTTPResponses::PlainText(s) => assert_eq!(s, "Hello"),
+///     _ => panic!("Test failed as x was not plain text")
+/// }
+/// ```
 impl From<&str> for HTTPResponses {
     fn from(value: &str) -> Self {
         // This can never fail, so call unwrap without worry
@@ -166,7 +176,12 @@ impl From<&str> for HTTPResponses {
 
 /// Adds functionality for parse. Can use the `parse()` method for `&str` to convert into a plaintext response. For example:
 /// ```rust
-/// "Hello".parse().unrwap() // Result<HTTPResponses::PlainText("Hello"), String> -> HTTPResponses::PlainText("Hello")
+/// use http::HTTPResponses;
+/// let x: HTTPResponses = "Hello".parse().unwrap(); // Result<HTTPResponses::PlainText("Hello"), String> -> HTTPResponses::PlainText("Hello")'
+/// match x {
+///     HTTPResponses::PlainText(s) => assert_eq!(s, "Hello"),
+///     _ => panic!("Test failed as x was not plain text")
+/// }
 /// ```
 /// Note: This returns a result, but the result is always an `Ok` variant. Because of this, it is safe to call `unwrap()` as no error can be returned.
 impl FromStr for HTTPResponses {
