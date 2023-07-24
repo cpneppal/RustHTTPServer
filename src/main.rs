@@ -1,7 +1,7 @@
 mod parser;
 mod sample_routes;
 use clap::Parser;
-use http::{DeconstructedHTTPRequest, Router};
+use http::{DeconstructedHTTPRequest, HTTPRequest, Router};
 use parser::HTTPArgs;
 use std::sync::Arc;
 use tokio::{
@@ -46,7 +46,7 @@ async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
         }
     }
     println!("Body Length => {}", body.len());
-    let response = router.handle_request(request_line, body).await;
+    let response = router.handle_request(HTTPRequest(request_line, body)).await;
     stream
         .write_all(response.as_slice())
         .await
