@@ -91,7 +91,7 @@ impl Response for HTTPResponses {
                 } => {
                     Self::craft_byte_response(code, message.as_str(), ctype.as_str(), headers, body)
                 }
-                _ => panic!("Unreachable!"),
+                _ => unreachable!(),
             }
         }
     }
