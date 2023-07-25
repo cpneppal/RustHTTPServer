@@ -70,6 +70,11 @@ impl Response for HTTPResponses {
                 Self::JavaScript(s) => Self::craft_string_response(200, "OK", "text/javascript", s),
                 Self::Css(s) => Self::craft_string_response(200, "OK", "text/css", s),
                 Self::Json(s) => Self::craft_string_response(200, "OK", "application/json", s),
+                Self::HTTPError {
+                    status_code,
+                    message,
+                    body,
+                } => Self::craft_string_response(status_code, message.as_str(), "text/plain", body),
                 Self::Image { ext, content } => Self::craft_byte_response(
                     200,
                     "OK",
@@ -77,11 +82,6 @@ impl Response for HTTPResponses {
                     None,
                     content,
                 ),
-                Self::HTTPError {
-                    status_code,
-                    message,
-                    body,
-                } => Self::craft_string_response(status_code, message.as_str(), "text/plain", body),
                 Self::Custom {
                     code,
                     message,
