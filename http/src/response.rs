@@ -44,7 +44,12 @@ pub enum HTTPResponses {
         body: Vec<u8>,
     },
 }
-
+/// Syntatic sugar for using [`Response::to_response`] on a [`Box<HTTPRequest>`]. Uses the `*` operator of the box pointers to dereference it and calls the `to_response` method  implemented for [`HTTPResponses`]
+impl Response for Box<HTTPResponses> {
+    fn to_response(self) -> Vec<u8> {
+        (*self).to_response()
+    }
+}
 /// When converting to response, if statements handle special cases. For instance, redirect's HTTP status code is different from the rest, so it needs to be handled separatley. This helps to avoid writing duplicate code.
 impl Response for HTTPResponses {
     fn to_response(self) -> Vec<u8> {
