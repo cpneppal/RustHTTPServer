@@ -35,10 +35,15 @@ impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
         // Convert from UTF 8, map the error, then use and_then to try to convert from a string and return a result with findings.
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
-        from_utf8(value)
-            .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
-            .and_then(HTTPRequestHeader::from_str)
-            .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
+
+        if cfg!(debug_assertions) {
+            dbg!(from_utf8(value))
+        } else {
+            from_utf8(value)
+        }
+        .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
+        .and_then(HTTPRequestHeader::from_str)
+        .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
     }
 }
 
@@ -46,7 +51,6 @@ impl FromStr for HTTPRequestHeader {
     type Err = String;
     // Input: s as a request line, up to the first \r\n\r\n
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        println!("Raw Request String => {s:?}");
         let (first_line, rest) = s
             .split_once("\r\n")
             .ok_or("Could not find first line of HTTP Request".to_owned())?;
