@@ -4,6 +4,8 @@ use std::str::{from_utf8, FromStr};
 use regex::bytes::Regex as BRegex;
 use regex::Regex;
 
+use crate::debg;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct HTTPRequestHeader {
     pub method: String,
@@ -36,14 +38,10 @@ impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
         // Return a Deconstructed HTTP request containing the request and index marking the end of the headers and body beginning
 
-        if cfg!(debug_assertions) {
-            dbg!(from_utf8(value))
-        } else {
-            from_utf8(value)
-        }
-        .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
-        .and_then(HTTPRequestHeader::from_str)
-        .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
+        debg!(from_utf8(value))
+            .map_err(|err| format!("Could not convert byte sequence to UTF-8 => {err}"))
+            .and_then(HTTPRequestHeader::from_str)
+            .map(|headers| DeconstructedHTTPRequest(headers, value.len() + boundary.as_str().len()))
     }
 }
 
