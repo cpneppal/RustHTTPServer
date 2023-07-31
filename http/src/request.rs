@@ -1,8 +1,9 @@
-use std::fmt;
-use std::str::{from_utf8, FromStr};
-
-use regex::bytes::Regex as BRegex;
-use regex::Regex;
+use regex::{bytes::Regex as BRegex, Regex};
+use std::{
+    fmt,
+    panic::catch_unwind,
+    str::{from_utf8, FromStr},
+};
 
 use crate::debg;
 
@@ -32,7 +33,7 @@ impl<'a> TryFrom<&'a [u8]> for DeconstructedHTTPRequest {
         let value = boundary
             .splitn(value, 2)
             .next()
-            .ok_or("Could not find HTTP Headers from Byte Slice".to_owned())?;
+            .ok_or("Could not find HTTP Headers from Byte Slice")?;
 
         // Convert from UTF 8, map the error, then use and_then to try to convert from a string and return a result with findings.
         // Cannot use map as that will wrap the from str result within a result resulting in nested results.
@@ -56,10 +57,16 @@ impl FromStr for HTTPRequestHeader {
         let re = Regex::new(r"([A-Z]+)\s+(/[^\s]*)\s+HTTP/(\d\.\d)")
             .map_err(|err| format!("Could not get regex to parse first line => {err}"))?;
 
-        let (_, [method, path, http_version]) =
-            re.captures(first_line).map(|s| s.extract()).ok_or(
-                "Regex for first line compiled, but couldn't find the methods on the first line",
-            )?;
+        let (_, [method, path, http_version]) = re
+            .captures(first_line)
+            .ok_or(format!(
+                "Could not capture first line of HTTP Request: {first_line}"
+            ))
+            .and_then(|s| {
+                catch_unwind(|| s.extract()).map_err(|err| {
+                    format!("Error processing captured groups for first line: {err:?})")
+                })
+            })?;
 
         // Get Content Length
         let re = Regex::new(r"content-length: (\d+)")
