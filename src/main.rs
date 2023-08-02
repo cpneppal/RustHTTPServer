@@ -5,15 +5,15 @@ use http::{DeconstructedHTTPRequest, HTTPRequest, Router};
 use parser::HTTPArgs;
 use std::sync::Arc;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
 };
 
 const BUF_SIZE: usize = 1024;
 const RETRIES: u8 = 5;
-async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
+async fn handle_connection(stream: TcpStream, router: Arc<Router>) {
     let mut buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
-
+    let mut stream = BufReader::new(stream);
     let request_size = stream
         .read(buf.as_mut_slice())
         .await
