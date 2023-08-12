@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::result;
 use std::str::FromStr;
 /// The HTTP Result type.
@@ -190,7 +191,7 @@ impl From<&str> for HTTPResponses {
 /// ```
 /// Note: This returns a result, but the result is always an `Ok` variant. Because of this, it is safe to call `unwrap()` as no error can be returned.
 impl FromStr for HTTPResponses {
-    type Err = String;
+    type Err = Infallible;
     fn from_str(s: &str) -> result::Result<Self, Self::Err> {
         Ok(Self::from(s.to_owned()))
     }
